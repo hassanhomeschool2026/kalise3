@@ -1,0 +1,28 @@
+{
+  "name": "JournalEntry",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "title": "Title"
+    },
+    "content": {
+      "type": "string",
+      "title": "Content"
+    },
+    "mood": {
+      "type": "string",
+      "enum": [
+        "great",
+        "good",
+        "okay",
+        "low",
+        "rough"
+      ],
+      "title": "Mood"
+    }
+  },
+  "required": [
+    "content"
+  ]
+}

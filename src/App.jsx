@@ -5,7 +5,19 @@ import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
-// Add page imports here
+import AppLayout from './components/AppLayout';
+import Home from './pages/Home';
+import Onboarding from './pages/Onboarding';
+import Subscribe from './pages/Subscribe';
+import TalkItOut from './pages/TalkItOut';
+import BrainDump from './pages/BrainDump';
+import Breathe from './pages/Breathe';
+import GroundMe from './pages/GroundMe';
+import Journal from './pages/Journal';
+import Affirmations from './pages/Affirmations';
+import Ambience from './pages/Ambience';
+import ZenGames from './pages/ZenGames';
+import Profile from './pages/Profile';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -33,7 +45,20 @@ const AuthenticatedApp = () => {
   // Render the main app
   return (
     <Routes>
-      {/* Add your page Route elements here */}
+      <Route path="/onboarding" element={<Onboarding />} />
+      <Route path="/subscribe" element={<Subscribe />} />
+      <Route element={<AppLayout />}>
+        <Route path="/" element={<Home />} />
+        <Route path="/talk" element={<TalkItOut />} />
+        <Route path="/brain-dump" element={<BrainDump />} />
+        <Route path="/breathe" element={<Breathe />} />
+        <Route path="/ground" element={<GroundMe />} />
+        <Route path="/journal" element={<Journal />} />
+        <Route path="/affirmations" element={<Affirmations />} />
+        <Route path="/ambience" element={<Ambience />} />
+        <Route path="/zen-games" element={<ZenGames />} />
+        <Route path="/profile" element={<Profile />} />
+      </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );

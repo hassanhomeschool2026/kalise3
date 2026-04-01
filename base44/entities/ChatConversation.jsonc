@@ -1,0 +1,40 @@
+{
+  "name": "ChatConversation",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "title": "Title"
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "listener",
+        "supportive",
+        "real_talk"
+      ],
+      "title": "Mode"
+    },
+    "messages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string"
+          }
+        }
+      },
+      "title": "Messages"
+    }
+  },
+  "required": [
+    "mode"
+  ]
+}

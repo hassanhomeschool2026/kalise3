@@ -1,0 +1,22 @@
+{
+  "name": "BrainDump",
+  "type": "object",
+  "properties": {
+    "raw_text": {
+      "type": "string",
+      "title": "Raw Text"
+    },
+    "analysis": {
+      "type": "string",
+      "title": "Analysis"
+    },
+    "follow_ups_used": {
+      "type": "number",
+      "title": "Follow Ups Used",
+      "default": 0
+    }
+  },
+  "required": [
+    "raw_text"
+  ]
+}
