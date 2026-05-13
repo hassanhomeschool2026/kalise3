@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import KaliseLogo from "../components/KaliseLogo";
+import CrisisModal from "../components/crisis/CrisisModal";
 
 const MODES = [
   { id: "listener", label: "Listener", emoji: "👂", desc: "I'll just hold space and listen" },
@@ -38,7 +39,13 @@ MODE: SUPPORTIVE — Validate deeply. Help them see their own strength. Be warm 
 MODE: REAL TALK — Be honest and direct, always with love. Call out patterns you notice. Gently challenge when needed. You're the friend who tells the hard truth because you care too much to watch them stay stuck. Still lead with empathy first.`,
 };
 
-const CRISIS_KEYWORDS = ["kill myself", "suicide", "end it all", "want to die", "don't want to be here", "self harm", "hurt myself", "no reason to live"];
+const CRISIS_KEYWORDS = [
+  "kill myself", "killing myself", "suicide", "suicidal", "end it all", "end my life",
+  "want to die", "wanna die", "don't want to be here", "dont want to be here",
+  "self harm", "self-harm", "hurt myself", "cutting myself", "no reason to live",
+  "better off dead", "better off without me", "can't go on", "cant go on",
+  "take my own life", "not worth living", "life isn't worth", "life is not worth"
+];
 
 function detectCrisis(text) {
   const lower = text.toLowerCase();
@@ -50,6 +57,7 @@ export default function TalkItOut() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [crisisOpen, setCrisisOpen] = useState(false);
   const scrollRef = useRef(null);
 
   useEffect(() => {
@@ -77,11 +85,12 @@ export default function TalkItOut() {
 
     // Crisis detection
     if (detectCrisis(userMsg)) {
+      setCrisisOpen(true);
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          content: "Hey — I hear you, and I want you to know that what you're feeling matters. You matter. I'm here, but I also want to make sure you have the support you deserve right now.\n\n📞 **988 Suicide & Crisis Lifeline** — call or text **988** anytime, 24/7. You don't have to go through this alone.\n\nI'm still here too. Whatever you need. 💜",
+          content: "Hey — I hear you, and what you're feeling matters deeply. You matter. I've pulled up some real support resources for you. Please don't go through this alone. 💜",
         },
       ]);
       setSending(false);
@@ -137,6 +146,11 @@ Respond as Kalise:`,
 
   return (
     <div className="flex flex-col h-[calc(100vh-8rem)] max-w-lg mx-auto">
+      <CrisisModal
+        open={crisisOpen}
+        onClose={() => setCrisisOpen(false)}
+        onContinue={() => setCrisisOpen(false)}
+      />
       {/* Chat header */}
       <div className="px-4 py-3 border-b border-border/50 flex items-center gap-3">
         <button onClick={() => { setMode(null); setMessages([]); }} className="text-muted-foreground hover:text-foreground">
