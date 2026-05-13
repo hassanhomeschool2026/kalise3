@@ -1,30 +1,22 @@
-// Web Audio synthesized soundscapes — no external files needed
+// Web Audio API synthesized soundscapes — zero external files
 
-function createReverb(ctx, duration = 2, decay = 2) {
-  const length = ctx.sampleRate * duration;
-  const impulse = ctx.createBuffer(2, length, ctx.sampleRate);
-  for (let i = 0; i < 2; i++) {
-    const channel = impulse.getChannelData(i);
-    for (let j = 0; j < length; j++) {
-      channel[j] = (Math.random() * 2 - 1) * Math.pow(1 - j / length, decay);
-    }
+function createReverb(ctx, duration = 2, decay = 2.5) {
+  const len = ctx.sampleRate * duration;
+  const buf = ctx.createBuffer(2, len, ctx.sampleRate);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = buf.getChannelData(ch);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay);
   }
-  const convolver = ctx.createConvolver();
-  convolver.buffer = impulse;
-  return convolver;
+  const c = ctx.createConvolver();
+  c.buffer = buf;
+  return c;
 }
 
 export class AmbienceEngine {
-  constructor() {
-    this.ctx = null;
-    this.nodes = [];
-    this.masterGain = null;
-  }
+  constructor() { this.ctx = null; this.nodes = []; this.masterGain = null; }
 
-  _initCtx() {
-    if (!this.ctx) {
-      this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-    }
+  _init() {
+    if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
     if (this.ctx.state === "suspended") this.ctx.resume();
     return this.ctx;
   }
@@ -35,375 +27,161 @@ export class AmbienceEngine {
     this.masterGain = null;
   }
 
-  _master(volume = 0.5) {
-    const ctx = this.ctx;
-    const gain = ctx.createGain();
-    gain.gain.setValueAtTime(0, ctx.currentTime);
-    gain.gain.linearRampToValueAtTime(volume, ctx.currentTime + 2);
-    gain.connect(ctx.destination);
-    this.masterGain = gain;
-    return gain;
+  _master(vol = 0.5) {
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0, this.ctx.currentTime);
+    g.gain.linearRampToValueAtTime(vol, this.ctx.currentTime + 2.5);
+    g.connect(this.ctx.destination);
+    this.masterGain = g;
+    return g;
   }
 
   _noise(type = "brown") {
     const ctx = this.ctx;
-    const bufferSize = ctx.sampleRate * 4;
-    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-    const data = buffer.getChannelData(0);
+    const bufSz = ctx.sampleRate * 4;
+    const buf = ctx.createBuffer(1, bufSz, ctx.sampleRate);
+    const d = buf.getChannelData(0);
     let last = 0;
-    for (let i = 0; i < bufferSize; i++) {
-      const white = Math.random() * 2 - 1;
-      if (type === "brown") {
-        data[i] = (last + 0.02 * white) / 1.02;
-        last = data[i];
-        data[i] *= 3.5;
-      } else {
-        data[i] = white;
-      }
+    for (let i = 0; i < bufSz; i++) {
+      const w = Math.random() * 2 - 1;
+      if (type === "brown") { d[i] = (last + 0.02 * w) / 1.02; last = d[i]; d[i] *= 3.5; }
+      else d[i] = w;
     }
     const src = ctx.createBufferSource();
-    src.buffer = buffer;
-    src.loop = true;
-    return src;
+    src.buffer = buf; src.loop = true; return src;
   }
 
-  playRain(master) {
-    const ctx = this.ctx;
-    // Heavy rain noise
-    const rain = this._noise("brown");
-    const rainFilter = ctx.createBiquadFilter();
-    rainFilter.type = "bandpass";
-    rainFilter.frequency.value = 1800;
-    rainFilter.Q.value = 0.4;
-    const rainGain = ctx.createGain();
-    rainGain.gain.value = 0.55;
-    rain.connect(rainFilter);
-    rainFilter.connect(rainGain);
-    rainGain.connect(master);
-    rain.start();
+  _bpf(freq, Q = 1) { const f = this.ctx.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = freq; f.Q.value = Q; return f; }
+  _lpf(freq) { const f = this.ctx.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = freq; return f; }
+  _hpf(freq) { const f = this.ctx.createBiquadFilter(); f.type = "highpass"; f.frequency.value = freq; return f; }
+  _gain(v) { const g = this.ctx.createGain(); g.gain.value = v; return g; }
+  _lfo(freq, amt, target) {
+    const ctx = this.ctx; const osc = ctx.createOscillator(); const g = ctx.createGain();
+    osc.frequency.value = freq; g.gain.value = amt; osc.connect(g); g.connect(target); osc.start(); return osc;
+  }
 
-    // High drizzle layer
-    const drizzle = this._noise("white");
-    const dFilter = ctx.createBiquadFilter();
-    dFilter.type = "highpass";
-    dFilter.frequency.value = 4000;
-    const dGain = ctx.createGain();
-    dGain.gain.value = 0.08;
-    drizzle.connect(dFilter);
-    dFilter.connect(dGain);
-    dGain.connect(master);
-    drizzle.start();
-
-    // Thunder rumble LFO
-    const rumble = this._noise("brown");
-    const rFilter = ctx.createBiquadFilter();
-    rFilter.type = "lowpass";
-    rFilter.frequency.value = 120;
-    const rGain = ctx.createGain();
-    rGain.gain.value = 0.3;
-    const lfo = ctx.createOscillator();
-    lfo.frequency.value = 0.05;
-    const lfoGain = ctx.createGain();
-    lfoGain.gain.value = 0.15;
-    lfo.connect(lfoGain);
-    lfoGain.connect(rGain.gain);
-    lfo.start();
-    rumble.connect(rFilter);
-    rFilter.connect(rGain);
-    rGain.connect(master);
-    rumble.start();
-
+  playRain(m) {
+    const rain = this._noise("brown"); const rf = this._bpf(1800, 0.4); const rg = this._gain(0.5);
+    rain.connect(rf); rf.connect(rg); rg.connect(m); rain.start();
+    const drizzle = this._noise("white"); const df = this._hpf(4000); const dg = this._gain(0.08);
+    drizzle.connect(df); df.connect(dg); dg.connect(m); drizzle.start();
+    const rumble = this._noise("brown"); const rl = this._lpf(120); const rgl = this._gain(0.25);
+    const lfo = this._lfo(0.05, 0.12, rgl.gain);
+    rumble.connect(rl); rl.connect(rgl); rgl.connect(m); rumble.start();
     this.nodes.push(rain, drizzle, rumble, lfo);
   }
 
-  playOcean(master) {
-    const ctx = this.ctx;
-    // Wave noise
-    const wave = this._noise("brown");
-    const wFilter = ctx.createBiquadFilter();
-    wFilter.type = "lowpass";
-    wFilter.frequency.value = 800;
-    const wGain = ctx.createGain();
-    wGain.gain.value = 0.5;
-
-    // LFO for wave rhythm
-    const lfo = ctx.createOscillator();
-    lfo.frequency.value = 0.12;
-    const lfoGain = ctx.createGain();
-    lfoGain.gain.value = 0.3;
-    lfo.connect(lfoGain);
-    lfoGain.connect(wGain.gain);
-    lfo.start();
-
-    wave.connect(wFilter);
-    wFilter.connect(wGain);
-    wGain.connect(master);
-    wave.start();
-
-    // Foam high-freq
-    const foam = this._noise("white");
-    const fFilter = ctx.createBiquadFilter();
-    fFilter.type = "bandpass";
-    fFilter.frequency.value = 3000;
-    fFilter.Q.value = 0.6;
-    const fGain = ctx.createGain();
-    fGain.gain.value = 0.06;
-    const fLfo = ctx.createOscillator();
-    fLfo.frequency.value = 0.1;
-    const fLfoGain = ctx.createGain();
-    fLfoGain.gain.value = 0.04;
-    fLfo.connect(fLfoGain);
-    fLfoGain.connect(fGain.gain);
-    fLfo.start();
-    foam.connect(fFilter);
-    fFilter.connect(fGain);
-    fGain.connect(master);
-    foam.start();
-
-    this.nodes.push(wave, foam, lfo, fLfo);
+  playOcean(m) {
+    const wave = this._noise("brown"); const wf = this._lpf(750); const wg = this._gain(0.45);
+    const lfo = this._lfo(0.11, 0.28, wg.gain);
+    wave.connect(wf); wf.connect(wg); wg.connect(m); wave.start();
+    const foam = this._noise("white"); const ff = this._bpf(3000, 0.6); const fg = this._gain(0.05);
+    const lfo2 = this._lfo(0.09, 0.04, fg.gain);
+    foam.connect(ff); ff.connect(fg); fg.connect(m); foam.start();
+    this.nodes.push(wave, foam, lfo, lfo2);
   }
 
-  playForest(master) {
-    const ctx = this.ctx;
-    // Wind base
-    const wind = this._noise("brown");
-    const wFilter = ctx.createBiquadFilter();
-    wFilter.type = "bandpass";
-    wFilter.frequency.value = 600;
-    wFilter.Q.value = 0.3;
-    const wGain = ctx.createGain();
-    wGain.gain.value = 0.2;
-    wind.connect(wFilter);
-    wFilter.connect(wGain);
-    wGain.connect(master);
-    wind.start();
-
-    // Birds — random chirps using oscillators
-    const chirpInterval = setInterval(() => {
+  playFire(m) {
+    const cr = this._noise("brown"); const cf = this._bpf(900, 0.5); const cg = this._gain(0.4);
+    cr.connect(cf); cf.connect(cg); cg.connect(m); cr.start();
+    const lo = this._noise("brown"); const lf = this._lpf(180); const lg = this._gain(0.32);
+    lo.connect(lf); lf.connect(lg); lg.connect(m); lo.start();
+    const popInt = setInterval(() => {
       if (!this.ctx) return;
-      const freq = 2000 + Math.random() * 2000;
-      const osc = ctx.createOscillator();
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(freq, ctx.currentTime);
-      osc.frequency.linearRampToValueAtTime(freq * 1.3, ctx.currentTime + 0.08);
-      osc.frequency.linearRampToValueAtTime(freq, ctx.currentTime + 0.15);
-      const g = ctx.createGain();
-      g.gain.setValueAtTime(0, ctx.currentTime);
-      g.gain.linearRampToValueAtTime(0.04, ctx.currentTime + 0.02);
-      g.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.2);
-      osc.connect(g);
-      g.connect(master);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.3);
-    }, 600 + Math.random() * 1400);
-
-    this.nodes.push(wind, { stop: () => clearInterval(chirpInterval) });
+      const o = this.ctx.createOscillator(); o.frequency.value = 90 + Math.random() * 100;
+      const g = this.ctx.createGain(); g.gain.setValueAtTime(0.1, this.ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.18);
+      o.connect(g); g.connect(m); o.start(); o.stop(this.ctx.currentTime + 0.22);
+    }, 250 + Math.random() * 600);
+    this.nodes.push(cr, lo, { stop: () => clearInterval(popInt) });
   }
 
-  playFire(master) {
-    const ctx = this.ctx;
-    // Crackle noise
-    const crackle = this._noise("brown");
-    const cFilter = ctx.createBiquadFilter();
-    cFilter.type = "bandpass";
-    cFilter.frequency.value = 1000;
-    cFilter.Q.value = 0.5;
-    const cGain = ctx.createGain();
-    cGain.gain.value = 0.4;
-    crackle.connect(cFilter);
-    cFilter.connect(cGain);
-    cGain.connect(master);
-    crackle.start();
-
-    // Low rumble
-    const rumble = this._noise("brown");
-    const rFilter = ctx.createBiquadFilter();
-    rFilter.type = "lowpass";
-    rFilter.frequency.value = 200;
-    const rGain = ctx.createGain();
-    rGain.gain.value = 0.35;
-    rumble.connect(rFilter);
-    rFilter.connect(rGain);
-    rGain.connect(master);
-    rumble.start();
-
-    // Pops
-    const popInterval = setInterval(() => {
+  playForest(m) {
+    const wind = this._noise("brown"); const wf = this._bpf(550, 0.3); const wg = this._gain(0.18);
+    wind.connect(wf); wf.connect(wg); wg.connect(m); wind.start();
+    const birdInt = setInterval(() => {
       if (!this.ctx) return;
-      const osc = ctx.createOscillator();
-      osc.type = "sine";
-      osc.frequency.value = 80 + Math.random() * 120;
-      const g = ctx.createGain();
-      g.gain.setValueAtTime(0.12, ctx.currentTime);
-      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
-      osc.connect(g);
-      g.connect(master);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.2);
-    }, 300 + Math.random() * 700);
-
-    this.nodes.push(crackle, rumble, { stop: () => clearInterval(popInterval) });
+      const freq = 2200 + Math.random() * 1800;
+      const o = this.ctx.createOscillator(); o.type = "sine"; o.frequency.setValueAtTime(freq, this.ctx.currentTime);
+      o.frequency.linearRampToValueAtTime(freq * 1.25, this.ctx.currentTime + 0.09);
+      o.frequency.linearRampToValueAtTime(freq, this.ctx.currentTime + 0.17);
+      const g = this.ctx.createGain(); g.gain.setValueAtTime(0, this.ctx.currentTime);
+      g.gain.linearRampToValueAtTime(0.035, this.ctx.currentTime + 0.02);
+      g.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.22);
+      o.connect(g); g.connect(m); o.start(); o.stop(this.ctx.currentTime + 0.28);
+    }, 700 + Math.random() * 1200);
+    this.nodes.push(wind, { stop: () => clearInterval(birdInt) });
   }
 
-  playNight(master) {
-    const ctx = this.ctx;
-    // Soft wind
-    const wind = this._noise("brown");
-    const wFilter = ctx.createBiquadFilter();
-    wFilter.type = "lowpass";
-    wFilter.frequency.value = 400;
-    const wGain = ctx.createGain();
-    wGain.gain.value = 0.12;
-    wind.connect(wFilter);
-    wFilter.connect(wGain);
-    wGain.connect(master);
-    wind.start();
-
-    // Crickets
-    const cricketInterval = setInterval(() => {
+  playNight(m) {
+    const wind = this._noise("brown"); const wf = this._lpf(360); const wg = this._gain(0.1);
+    wind.connect(wf); wf.connect(wg); wg.connect(m); wind.start();
+    const cInt = setInterval(() => {
       if (!this.ctx) return;
-      for (let i = 0; i < 3; i++) {
-        const osc = ctx.createOscillator();
-        osc.type = "sine";
-        osc.frequency.value = 4200 + Math.random() * 400;
-        const g = ctx.createGain();
-        g.gain.setValueAtTime(0, ctx.currentTime + i * 0.04);
-        g.gain.linearRampToValueAtTime(0.02, ctx.currentTime + i * 0.04 + 0.01);
-        g.gain.linearRampToValueAtTime(0, ctx.currentTime + i * 0.04 + 0.04);
-        osc.connect(g);
-        g.connect(master);
-        osc.start();
-        osc.stop(ctx.currentTime + i * 0.04 + 0.06);
+      for (let i = 0; i < 4; i++) {
+        const o = this.ctx.createOscillator(); o.frequency.value = 4100 + Math.random() * 500;
+        const g = this.ctx.createGain(); const t0 = this.ctx.currentTime + i * 0.045;
+        g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(0.018, t0 + 0.012);
+        g.gain.linearRampToValueAtTime(0, t0 + 0.045);
+        o.connect(g); g.connect(m); o.start(t0); o.stop(t0 + 0.06);
       }
-    }, 400);
-
-    this.nodes.push(wind, { stop: () => clearInterval(cricketInterval) });
+    }, 380);
+    this.nodes.push(wind, { stop: () => clearInterval(cInt) });
   }
 
-  playStream(master) {
-    const ctx = this.ctx;
-    const rev = createReverb(ctx, 1.5, 3);
-    rev.connect(master);
-
-    const stream = this._noise("brown");
-    const sFilter = ctx.createBiquadFilter();
-    sFilter.type = "bandpass";
-    sFilter.frequency.value = 900;
-    sFilter.Q.value = 0.6;
-    const sGain = ctx.createGain();
-    sGain.gain.value = 0.45;
-    stream.connect(sFilter);
-    sFilter.connect(sGain);
-    sGain.connect(rev);
-    stream.start();
-
-    // Gurgle LFO
-    const lfo = ctx.createOscillator();
-    lfo.frequency.value = 0.8;
-    const lfoGain = ctx.createGain();
-    lfoGain.gain.value = 200;
-    lfo.connect(lfoGain);
-    lfoGain.connect(sFilter.frequency);
-    lfo.start();
-
-    this.nodes.push(stream, lfo, { stop: () => rev.disconnect() });
+  playStream(m) {
+    const rev = createReverb(this.ctx, 1.2, 3); rev.connect(m);
+    const s = this._noise("brown"); const sf = this._bpf(950, 0.65); const sg = this._gain(0.42);
+    const lfo = this._lfo(0.85, 180, sf.frequency);
+    s.connect(sf); sf.connect(sg); sg.connect(rev); s.start();
+    this.nodes.push(s, lfo, { stop: () => rev.disconnect() });
   }
 
-  playWind(master) {
-    const ctx = this.ctx;
-    const rev = createReverb(ctx, 3, 2);
-    rev.connect(master);
-
-    // Chime tones
-    const CHIME_FREQS = [523, 659, 784, 988, 1047];
-    const chimeInterval = setInterval(() => {
+  playWind(m) {
+    const rev = createReverb(this.ctx, 3, 2); rev.connect(m);
+    const FREQS = [523, 659, 784, 988, 1047, 1319];
+    const chInt = setInterval(() => {
       if (!this.ctx) return;
-      const freq = CHIME_FREQS[Math.floor(Math.random() * CHIME_FREQS.length)];
-      const osc = ctx.createOscillator();
-      osc.type = "sine";
-      osc.frequency.value = freq;
-      const g = ctx.createGain();
-      g.gain.setValueAtTime(0.12, ctx.currentTime);
-      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 2);
-      osc.connect(g);
-      g.connect(rev);
-      osc.start();
-      osc.stop(ctx.currentTime + 2.5);
-    }, 800 + Math.random() * 1500);
-
-    // Soft wind
-    const wind = this._noise("brown");
-    const wFilter = ctx.createBiquadFilter();
-    wFilter.type = "bandpass";
-    wFilter.frequency.value = 500;
-    wFilter.Q.value = 0.4;
-    const wGain = ctx.createGain();
-    wGain.gain.value = 0.1;
-    wind.connect(wFilter);
-    wFilter.connect(wGain);
-    wGain.connect(master);
-    wind.start();
-
-    this.nodes.push(wind, { stop: () => { clearInterval(chimeInterval); rev.disconnect(); } });
+      const f = FREQS[Math.floor(Math.random() * FREQS.length)];
+      const o = this.ctx.createOscillator(); o.type = "sine"; o.frequency.value = f;
+      const g = this.ctx.createGain(); g.gain.setValueAtTime(0.1, this.ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 2.2);
+      o.connect(g); g.connect(rev); o.start(); o.stop(this.ctx.currentTime + 2.5);
+    }, 700 + Math.random() * 1400);
+    const w = this._noise("brown"); const wf = this._bpf(480, 0.4); const wg = this._gain(0.08);
+    w.connect(wf); wf.connect(wg); wg.connect(m); w.start();
+    this.nodes.push(w, { stop: () => { clearInterval(chInt); rev.disconnect(); } });
   }
 
-  playThunder(master) {
-    const ctx = this.ctx;
-    // Heavy rain
-    const rain = this._noise("brown");
-    const rFilter = ctx.createBiquadFilter();
-    rFilter.type = "bandpass";
-    rFilter.frequency.value = 2000;
-    rFilter.Q.value = 0.3;
-    const rGain = ctx.createGain();
-    rGain.gain.value = 0.5;
-    rain.connect(rFilter);
-    rFilter.connect(rGain);
-    rGain.connect(master);
-    rain.start();
-
-    // Thunder booms
-    const thunderInterval = setInterval(() => {
+  playThunder(m) {
+    const rain = this._noise("brown"); const rf = this._bpf(2000, 0.3); const rg = this._gain(0.48);
+    rain.connect(rf); rf.connect(rg); rg.connect(m); rain.start();
+    const tInt = setInterval(() => {
       if (!this.ctx) return;
-      const rumble = this._noise("brown");
-      const tFilter = ctx.createBiquadFilter();
-      tFilter.type = "lowpass";
-      tFilter.frequency.value = 150;
-      const tGain = ctx.createGain();
-      tGain.gain.setValueAtTime(0, ctx.currentTime);
-      tGain.gain.linearRampToValueAtTime(0.6, ctx.currentTime + 0.1);
-      tGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 3);
-      rumble.connect(tFilter);
-      tFilter.connect(tGain);
-      tGain.connect(master);
-      rumble.start();
-      rumble.stop(ctx.currentTime + 4);
+      const rumble = this._noise("brown"); const tf = this._lpf(140); const tg = this._gain(0);
+      tg.gain.setValueAtTime(0, this.ctx.currentTime); tg.gain.linearRampToValueAtTime(0.55, this.ctx.currentTime + 0.15);
+      tg.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 3.5);
+      rumble.connect(tf); tf.connect(tg); tg.connect(m); rumble.start(); rumble.stop(this.ctx.currentTime + 4);
       this.nodes.push(rumble);
-    }, 4000 + Math.random() * 8000);
-
-    this.nodes.push(rain, { stop: () => clearInterval(thunderInterval) });
+    }, 5000 + Math.random() * 8000);
+    this.nodes.push(rain, { stop: () => clearInterval(tInt) });
   }
 
   play(sceneId, volume = 0.5) {
     this.stop();
-    const ctx = this._initCtx();
-    const master = this._master(volume);
-    const fn = {
-      rain: () => this.playRain(master),
-      ocean: () => this.playOcean(master),
-      forest: () => this.playForest(master),
-      fire: () => this.playFire(master),
-      night: () => this.playNight(master),
-      stream: () => this.playStream(master),
-      wind: () => this.playWind(master),
-      thunder: () => this.playThunder(master),
-    }[sceneId];
-    fn?.();
+    this._init();
+    const m = this._master(volume);
+    const map = {
+      rain: () => this.playRain(m), ocean: () => this.playOcean(m),
+      fire: () => this.playFire(m), forest: () => this.playForest(m),
+      night: () => this.playNight(m), stream: () => this.playStream(m),
+      wind: () => this.playWind(m), thunder: () => this.playThunder(m),
+    };
+    map[sceneId]?.();
   }
 
   setVolume(v) {
-    if (this.masterGain && this.ctx) {
+    if (this.masterGain && this.ctx)
       this.masterGain.gain.linearRampToValueAtTime(v, this.ctx.currentTime + 0.5);
-    }
   }
 }
