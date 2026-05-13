@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import moment from "moment";
+import MoodChart from "@/components/journal/MoodChart";
 
 const MOODS = [
   { value: "great", emoji: "😊", label: "Great" },
@@ -135,6 +136,8 @@ export default function Journal() {
           </Button>
         </div>
       </div>
+
+      {!loading && <MoodChart entries={entries} />}
 
       {loading ? (
         <div className="text-center py-12 text-muted-foreground text-sm">Loading...</div>
