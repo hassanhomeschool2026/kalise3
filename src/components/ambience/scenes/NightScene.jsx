@@ -50,8 +50,9 @@ export function drawNight(ctx, w, h, state) {
   // Stars
   state.stars.forEach((s) => {
     const twinkle = 0.45 + Math.sin(t * s.speed + s.phase) * 0.55;
+    const radius = Math.max(0.01, s.r * twinkle);
     ctx.beginPath();
-    ctx.arc(s.x, s.y, s.r * twinkle, 0, Math.PI * 2);
+    ctx.arc(s.x, s.y, radius, 0, Math.PI * 2);
     const [r, g, b] = s.color;
     ctx.fillStyle = `rgba(${r},${g},${b},${twinkle * 0.92})`;
     ctx.fill();
