@@ -1,7 +1,7 @@
 import { Outlet, Link, useLocation } from "react-router-dom";
 import { Home, MessageCircle, BookOpen, User } from "lucide-react";
 import CalmMeButton from "./CalmMeButton";
-import KaliseLogo from "./KaliseLogo";
+import KaliseAvatar from "./KaliseAvatar";
 
 const NAV_ITEMS = [
   { path: "/", icon: Home, label: "Home" },
@@ -18,7 +18,7 @@ export default function AppLayout() {
       {/* Top bar */}
       <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-border/50 px-4 py-3 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2">
-          <KaliseLogo size={32} />
+          <KaliseAvatar expression="calm" size={32} />
           <span className="font-heading text-lg font-semibold text-foreground">Kalise</span>
         </Link>
         <p className="text-xs text-muted-foreground italic hidden sm:block">Your space to breathe</p>

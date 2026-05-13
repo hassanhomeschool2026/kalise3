@@ -5,7 +5,7 @@ import { ChevronRight, Shield } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import KaliseLogo from "../components/KaliseLogo";
+import KaliseAvatar from "../components/KaliseAvatar";
 
 const AGE_GROUPS = ["13-17", "18-24", "25-34", "35-44", "45-54", "55+"];
 const GENDERS = ["Woman", "Man", "Non-binary", "Genderfluid", "Prefer not to say", "Other"];
@@ -63,7 +63,7 @@ export default function Onboarding() {
   const steps = [
     // Welcome
     <div className="flex flex-col items-center text-center gap-6" key="welcome">
-      <KaliseLogo size={80} className="animate-float" />
+      <KaliseAvatar expression="encouraging" size={88} animate={true} />
       <h1 className="font-heading text-3xl font-bold">Hey. I'm Kalise.</h1>
       <p className="text-muted-foreground leading-relaxed max-w-xs">
         Your space to breathe, vent, and figure it out. I'm not a therapist — I'm more like your most emotionally intelligent friend who tells you the truth with care.

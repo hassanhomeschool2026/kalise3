@@ -3,7 +3,7 @@ import { ArrowLeft, Send } from "lucide-react";
 import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
-import KaliseLogo from "../components/KaliseLogo";
+import KaliseAvatar from "../components/KaliseAvatar";
 import CrisisModal from "../components/crisis/CrisisModal";
 
 const MODES = [
@@ -155,7 +155,7 @@ Respond as Kalise:`,
         <button onClick={() => { setMode(null); setMessages([]); }} className="text-muted-foreground hover:text-foreground">
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <KaliseLogo size={28} />
+        <KaliseAvatar expression={mode?.id === "real_talk" ? "encouraging" : mode?.id === "supportive" ? "supportive" : "calm"} size={32} />
         <div>
           <p className="text-sm font-semibold">Kalise</p>
           <p className="text-[10px] text-muted-foreground">{mode.label} mode</p>

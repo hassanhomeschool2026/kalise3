@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Heart } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { base44 } from "@/api/base44Client";
+import KaliseAvatar from "./KaliseAvatar";
 
 const STATES = [
   { id: "panic", label: "Panic" },
@@ -50,10 +50,10 @@ export default function CalmMeButton() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-6 right-6 z-50 w-16 h-16 rounded-full bg-gradient-to-br from-purple-400 via-purple-500 to-purple-700 shadow-lg shadow-purple-500/30 flex items-center justify-center animate-pulse-soft hover:scale-110 transition-transform"
+        className="fixed bottom-6 right-6 z-50 w-16 h-16 rounded-full bg-background/80 backdrop-blur-sm shadow-lg shadow-purple-500/20 flex items-center justify-center hover:scale-110 transition-transform"
         aria-label="Calm Me"
       >
-        <Heart className="w-7 h-7 text-white fill-white" />
+        <KaliseAvatar expression="calm" size={52} animate={true} />
       </button>
 
       <Dialog open={open} onOpenChange={handleClose}>
@@ -83,7 +83,7 @@ export default function CalmMeButton() {
               </div>
               {loading ? (
                 <div className="flex flex-col items-center gap-3 py-8">
-                  <div className="w-10 h-10 rounded-full bg-primary/20 animate-breathe" />
+                  <KaliseAvatar expression="supportive" size={64} animate={true} />
                   <p className="text-sm text-muted-foreground">Kalise is here...</p>
                 </div>
               ) : (
