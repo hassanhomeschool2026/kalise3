@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { ArrowLeft, Play, Pause } from "lucide-react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
+import KaliseAvatar from "../components/KaliseAvatar";
 
 const PATTERNS = [
   { name: "Box Breathing", inhale: 4, hold1: 4, exhale: 4, hold2: 4, desc: "Equal parts, calming and centering" },
@@ -95,29 +96,27 @@ export default function Breathe() {
 
       <p className="text-sm text-muted-foreground mb-2">{pattern.name}</p>
 
-      {/* Breathing circle */}
-      <div className="relative w-56 h-56 flex items-center justify-center mb-8">
+      {/* Breathing Kalise */}
+      <div className="relative w-56 h-56 flex items-center justify-center mb-4">
         <motion.div
           animate={{ scale: active ? circleScale : 1 }}
           transition={{ duration: phase === "inhale" ? pattern.inhale : phase === "exhale" ? pattern.exhale : 0.3, ease: "easeInOut" }}
-          className="w-40 h-40 rounded-full bg-gradient-to-br from-purple-300/50 to-purple-500/50 flex items-center justify-center"
+          className="flex items-center justify-center"
         >
-          <div className="w-28 h-28 rounded-full bg-gradient-to-br from-purple-400/60 to-purple-600/60 flex items-center justify-center">
-            <div className="text-center">
-              {active ? (
-                <>
-                  <p className="text-2xl font-bold text-white">{timer}</p>
-                  <p className="text-xs text-white/80">{phaseLabel}</p>
-                </>
-              ) : (
-                <p className="text-sm text-white/80">Ready</p>
-              )}
-            </div>
-          </div>
+          <KaliseAvatar expression="calm" size={160} animate={active} />
         </motion.div>
       </div>
 
-      {active && <p className="text-sm text-muted-foreground mb-6">Cycle {cycles + 1}</p>}
+      <div className="text-center mb-6 h-10">
+        {active ? (
+          <>
+            <p className="text-3xl font-bold text-primary">{timer}</p>
+            <p className="text-sm text-muted-foreground">{phaseLabel}</p>
+          </>
+        ) : (
+          <p className="text-sm text-muted-foreground">Ready when you are</p>
+        )}
+      </div>
 
       <button
         onClick={() => active ? stop() : setActive(true)}
