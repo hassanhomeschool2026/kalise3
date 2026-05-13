@@ -9,7 +9,7 @@ const EXERCISES = [
     id: "5-4-3-2-1",
     title: "5-4-3-2-1 Senses",
     desc: "Come back to the present through your senses",
-    emoji: "🌿",
+
     steps: [
       { instruction: "Name 5 things you can SEE right now.", hint: "Look around slowly. What catches your eye?" },
       { instruction: "Name 4 things you can TOUCH.", hint: "Feel the textures around you." },
@@ -22,7 +22,7 @@ const EXERCISES = [
     id: "body-scan",
     title: "Quick Body Scan",
     desc: "Release tension from head to toe",
-    emoji: "🧘",
+
     steps: [
       { instruction: "Unclench your jaw. Let it hang slightly open.", hint: "You didn't realize you were clenching, did you?" },
       { instruction: "Drop your shoulders. Away from your ears.", hint: "Let them fall as low as they'll go." },
@@ -35,7 +35,7 @@ const EXERCISES = [
     id: "cold-water",
     title: "Cold Water Reset",
     desc: "Quick nervous system reset",
-    emoji: "💧",
+
     steps: [
       { instruction: "Get cold water — a glass, a faucet, ice.", hint: "The colder the better." },
       { instruction: "Hold the cold water against your wrists for 30 seconds.", hint: "Feel the shock. Let it wake your senses." },
@@ -65,7 +65,6 @@ export default function GroundMe() {
               className="w-full p-4 rounded-2xl border border-border/50 bg-card hover:border-primary/30 transition-all text-left"
             >
               <div className="flex items-center gap-3">
-                <span className="text-2xl">{ex.emoji}</span>
                 <div>
                   <h3 className="font-semibold text-sm">{ex.title}</h3>
                   <p className="text-xs text-muted-foreground">{ex.desc}</p>
@@ -103,7 +102,6 @@ export default function GroundMe() {
             exit={{ opacity: 0, y: -20 }}
             className="space-y-4"
           >
-            <p className="text-5xl mb-4">{exercise.emoji}</p>
             <h2 className="font-heading text-xl font-semibold">{step.instruction}</h2>
             <p className="text-sm text-muted-foreground italic">{step.hint}</p>
           </motion.div>
@@ -120,7 +118,7 @@ export default function GroundMe() {
           onClick={() => isLast ? setExercise(null) : setStepIndex(stepIndex + 1)}
           className="flex-1 h-12"
         >
-          {isLast ? "I feel more grounded 🌿" : "Next"}
+          {isLast ? "I feel more grounded" : "Next"}
         </Button>
       </div>
     </div>

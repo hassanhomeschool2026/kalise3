@@ -62,7 +62,6 @@ export default function CrisisModal({ open, onClose, onContinue }) {
             <div className="bg-gradient-to-br from-primary/20 to-accent/20 px-6 pt-6 pb-4">
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-2xl mb-1">💜</p>
                   <h2 className="font-heading text-xl font-bold">You matter. I'm here.</h2>
                   <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
                     What you're feeling is real, and you deserve real support right now. Please reach out — you don't have to do this alone.

@@ -4,12 +4,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { base44 } from "@/api/base44Client";
 
 const STATES = [
-  { id: "panic", label: "Panic", emoji: "😰" },
-  { id: "anger", label: "Anger", emoji: "😤" },
-  { id: "anxiety", label: "Anxiety", emoji: "😟" },
-  { id: "spiraling", label: "Spiraling", emoji: "🌀" },
-  { id: "slow_down", label: "Slow Down", emoji: "🐢" },
-  { id: "overwhelmed", label: "Overwhelmed", emoji: "😵‍💫" },
+  { id: "panic", label: "Panic" },
+  { id: "anger", label: "Anger" },
+  { id: "anxiety", label: "Anxiety" },
+  { id: "spiraling", label: "Spiraling" },
+  { id: "slow_down", label: "Slow Down" },
+  { id: "overwhelmed", label: "Overwhelmed" },
 ];
 
 const STATE_PROMPTS = {
@@ -72,7 +72,6 @@ export default function CalmMeButton() {
                   onClick={() => handleStateSelect(state)}
                   className="flex flex-col items-center gap-2 p-4 rounded-xl bg-secondary hover:bg-primary/10 hover:border-primary/30 border border-transparent transition-all"
                 >
-                  <span className="text-2xl">{state.emoji}</span>
                   <span className="text-sm font-medium">{state.label}</span>
                 </button>
               ))}
@@ -80,7 +79,6 @@ export default function CalmMeButton() {
           ) : (
             <div className="mt-2">
               <div className="flex items-center gap-2 mb-4 px-3 py-2 bg-secondary rounded-lg">
-                <span className="text-lg">{selectedState.emoji}</span>
                 <span className="text-sm font-medium text-muted-foreground">{selectedState.label}</span>
               </div>
               {loading ? (

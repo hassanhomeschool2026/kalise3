@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 
 const PATTERNS = [
-  { name: "Box Breathing", inhale: 4, hold1: 4, exhale: 4, hold2: 4, desc: "Equal parts — calming & centering" },
+  { name: "Box Breathing", inhale: 4, hold1: 4, exhale: 4, hold2: 4, desc: "Equal parts, calming and centering" },
   { name: "4-7-8 Relaxation", inhale: 4, hold1: 7, exhale: 8, hold2: 0, desc: "Activates your rest response" },
   { name: "Simple Calm", inhale: 4, hold1: 2, exhale: 6, hold2: 0, desc: "Easy and soothing for beginners" },
 ];

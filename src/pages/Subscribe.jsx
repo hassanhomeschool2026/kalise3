@@ -45,7 +45,7 @@ export default function Subscribe() {
       {/* Plan card */}
       <div className="w-full max-w-sm bg-card border border-border rounded-2xl p-6 mb-6 relative overflow-hidden">
         <div className="absolute top-0 right-0 bg-primary text-primary-foreground text-xs font-bold px-3 py-1 rounded-bl-xl flex items-center gap-1">
-          <Star className="w-3 h-3" /> Most Popular
+          Most Popular
         </div>
         
         <h3 className="font-heading text-lg font-semibold mb-1">Kalise Premium</h3>

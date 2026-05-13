@@ -7,9 +7,9 @@ import KaliseLogo from "../components/KaliseLogo";
 import CrisisModal from "../components/crisis/CrisisModal";
 
 const MODES = [
-  { id: "listener", label: "Listener", emoji: "👂", desc: "I'll just hold space and listen" },
-  { id: "supportive", label: "Supportive", emoji: "🤗", desc: "Gentle encouragement and validation" },
-  { id: "real_talk", label: "Real Talk", emoji: "💬", desc: "Honest truth, delivered with love" },
+  { id: "listener", label: "Listener", desc: "I'll just hold space and listen" },
+  { id: "supportive", label: "Supportive", desc: "Gentle encouragement and validation" },
+  { id: "real_talk", label: "Real Talk", desc: "Honest truth, delivered with love" },
 ];
 
 const KALISE_CORE = `You are Kalise — a wellness coach and deeply trusted check-in partner. You are warm, emotionally intelligent, a little edgy, and deeply human in your responses. You are NOT a therapist and never diagnose or prescribe — but you show up like the most caring, honest friend someone could have.
@@ -69,10 +69,10 @@ export default function TalkItOut() {
     setMessages([{
       role: "assistant",
       content: m.id === "listener"
-        ? "I'm here. Whatever's on your mind — just let it out. I'm listening. 💜"
+        ? "I'm here. Whatever's on your mind, just let it out. I'm listening."
         : m.id === "supportive"
-        ? "Hey, I'm here for you. Whatever you're carrying, you don't have to carry it alone. What's going on? 💜"
-        : "Alright, let's get real. What's going on with you? I'm not gonna sugarcoat it, but I've got you. 💜",
+        ? "Hey, I'm here for you. Whatever you're carrying, you don't have to carry it alone. What's going on?"
+        : "Alright, let's get real. What's going on with you? I'm not gonna sugarcoat it, but I've got you.",
     }]);
   };
 
@@ -90,7 +90,7 @@ export default function TalkItOut() {
         ...prev,
         {
           role: "assistant",
-          content: "Hey — I hear you, and what you're feeling matters deeply. You matter. I've pulled up some real support resources for you. Please don't go through this alone. 💜",
+          content: "I hear you, and what you're feeling matters deeply. You matter. I've pulled up some real support resources for you. Please don't go through this alone.",
         },
       ]);
       setSending(false);
@@ -131,7 +131,6 @@ Respond as Kalise:`,
               className="w-full p-4 rounded-2xl border border-border/50 bg-card hover:border-primary/30 hover:shadow-sm transition-all text-left"
             >
               <div className="flex items-center gap-3">
-                <span className="text-2xl">{m.emoji}</span>
                 <div>
                   <h3 className="font-semibold">{m.label}</h3>
                   <p className="text-xs text-muted-foreground">{m.desc}</p>
@@ -159,7 +158,7 @@ Respond as Kalise:`,
         <KaliseLogo size={28} />
         <div>
           <p className="text-sm font-semibold">Kalise</p>
-          <p className="text-[10px] text-muted-foreground">{mode.emoji} {mode.label} mode</p>
+          <p className="text-[10px] text-muted-foreground">{mode.label} mode</p>
         </div>
       </div>
 

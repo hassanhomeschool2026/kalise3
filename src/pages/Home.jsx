@@ -109,7 +109,7 @@ export default function Home() {
       {/* Greeting */}
       <div className="mb-6">
         <h1 className="font-heading text-2xl font-bold mb-1">
-          Hey, {profile?.nickname || "friend"} 💜
+          Hey, {profile?.nickname || "friend"}
         </h1>
         <p className="text-muted-foreground text-sm">{greeting}</p>
       </div>
@@ -125,9 +125,9 @@ export default function Home() {
       <div className="mt-6 p-4 rounded-2xl bg-primary/5 border border-primary/10 text-center">
         <KaliseLogo size={28} className="mx-auto mb-2" />
         <p className="text-sm italic text-muted-foreground">
-          "You don't have to have it all figured out. You just have to show up — and you did."
+          "You don't have to have it all figured out. You just have to show up. And you did."
         </p>
-        <p className="text-xs text-primary font-medium mt-1">— Kalise</p>
+        <p className="text-xs text-primary font-medium mt-1">Kalise</p>
       </div>
     </div>
   );

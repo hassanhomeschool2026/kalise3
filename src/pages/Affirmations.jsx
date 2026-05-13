@@ -6,12 +6,12 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 
 const CATEGORIES = [
-  { id: "self_worth", label: "Self-Worth", emoji: "💜" },
-  { id: "anxiety", label: "Anxiety Relief", emoji: "🌊" },
-  { id: "motivation", label: "Motivation", emoji: "🔥" },
-  { id: "healing", label: "Healing", emoji: "🌱" },
-  { id: "strength", label: "Inner Strength", emoji: "💪" },
-  { id: "peace", label: "Peace", emoji: "🕊️" },
+  { id: "self_worth", label: "Self-Worth" },
+  { id: "anxiety", label: "Anxiety Relief" },
+  { id: "motivation", label: "Motivation" },
+  { id: "healing", label: "Healing" },
+  { id: "strength", label: "Inner Strength" },
+  { id: "peace", label: "Peace" },
 ];
 
 export default function Affirmations() {
@@ -56,7 +56,6 @@ Rules:
               onClick={() => generateAffirmation(cat)}
               className="p-4 rounded-2xl border border-border/50 bg-card hover:border-primary/30 transition-all text-center"
             >
-              <span className="text-2xl block mb-2">{cat.emoji}</span>
               <span className="text-sm font-medium">{cat.label}</span>
             </button>
           ))}
@@ -71,7 +70,6 @@ Rules:
         <ArrowLeft className="w-4 h-4" /> Back
       </button>
 
-      <span className="text-4xl mb-4">{category.emoji}</span>
       <p className="text-xs text-muted-foreground mb-6">{category.label}</p>
 
       <AnimatePresence mode="wait">
