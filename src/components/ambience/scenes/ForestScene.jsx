@@ -112,14 +112,20 @@ export function drawForest(ctx, w, h, state) {
     ctx.fill();
   });
 
-  // Floating dust particles
+  // Floating dust particles — blurred for soft bokeh look
   state.particles.forEach((p) => {
     p.x += p.vx + Math.sin(t * 0.3 + p.y * 0.01) * 0.1;
     p.y += p.vy;
     if (p.y < -5) { p.y = h + 5; p.x = Math.random() * w; }
+    const pa = p.alpha * (0.5 + Math.sin(t + p.x * 0.02) * 0.5);
+    // Bokeh halo
+    const bokeh = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * 3.5);
+    bokeh.addColorStop(0, `rgba(200,240,200,${pa})`);
+    bokeh.addColorStop(0.4, `rgba(180,230,180,${pa * 0.4})`);
+    bokeh.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = bokeh;
     ctx.beginPath();
-    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(200,240,200,${p.alpha * (0.5 + Math.sin(t + p.x * 0.02) * 0.5)})`;
+    ctx.arc(p.x, p.y, p.size * 3.5, 0, Math.PI * 2);
     ctx.fill();
   });
 

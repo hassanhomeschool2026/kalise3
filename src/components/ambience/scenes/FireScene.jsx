@@ -62,7 +62,7 @@ export function drawFire(ctx, w, h, state) {
   ctx.strokeStyle = "rgba(80,30,0,0.5)"; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.ellipse(cx - 12, fireY + 14, 35, 9, -0.2, 0.3, 2.8); ctx.stroke();
 
-  // FIRE PARTICLES
+  // FIRE PARTICLES — with heat shimmer blur on upper particles
   state.particles.forEach((p) => {
     p.life += 0.012 + p.turbulence * 0.5;
     if (p.life >= 1) {
@@ -86,7 +86,9 @@ export function drawFire(ctx, w, h, state) {
     else if (fl < 0.6) { r = 255; g = 100 * (1 - fl); b = 0; a = 0.8 * (1 - (fl - 0.35) / 0.6); }
     else { r = 200; g = 30; b = 0; a = 0.4 * (1 - fl); }
 
-    const sz = p.size * (1 - fl * 0.6);
+    const sz = Math.max(0.01, p.size * (1 - fl * 0.6));
+    // Upper particles get a soft blur for heat distortion effect
+    ctx.filter = fl > 0.55 ? "blur(1.5px)" : fl > 0.35 ? "blur(0.5px)" : "none";
     const fireGrad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, sz);
     fireGrad.addColorStop(0, `rgba(${r},${g},${b},${a})`);
     fireGrad.addColorStop(1, `rgba(${r},${Math.floor(g * 0.3)},0,0)`);
@@ -95,6 +97,7 @@ export function drawFire(ctx, w, h, state) {
     ctx.fillStyle = fireGrad;
     ctx.fill();
   });
+  ctx.filter = "none";
 
   // Embers
   state.embers.forEach((e) => {

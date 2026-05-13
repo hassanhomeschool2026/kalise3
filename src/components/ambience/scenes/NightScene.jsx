@@ -47,13 +47,23 @@ export function drawNight(ctx, w, h, state) {
     ctx.fillRect(0, 0, w, h);
   }
 
-  // Stars
+  // Stars — larger stars get a soft glow halo for realism
   state.stars.forEach((s) => {
     const twinkle = 0.45 + Math.sin(t * s.speed + s.phase) * 0.55;
     const radius = Math.max(0.01, s.r * twinkle);
+    const [r, g, b] = s.color;
+    // Glow halo for brighter stars
+    if (s.r > 0.9) {
+      const glow = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, radius * 5);
+      glow.addColorStop(0, `rgba(${r},${g},${b},${twinkle * 0.25})`);
+      glow.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, radius * 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
     ctx.beginPath();
     ctx.arc(s.x, s.y, radius, 0, Math.PI * 2);
-    const [r, g, b] = s.color;
     ctx.fillStyle = `rgba(${r},${g},${b},${twinkle * 0.92})`;
     ctx.fill();
   });

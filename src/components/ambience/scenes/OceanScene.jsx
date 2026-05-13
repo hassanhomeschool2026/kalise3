@@ -44,11 +44,21 @@ export function drawOcean(ctx, w, h, state) {
   ctx.fillStyle = haze;
   ctx.fillRect(0, h * 0.3, w, h * 0.22);
 
-  // Stars
+  // Stars — with glow halos for realism
   state.stars.forEach((s) => {
     const twinkle = 0.55 + Math.sin(t * s.speed + s.phase) * 0.45;
+    const radius = Math.max(0.01, s.r * twinkle);
+    if (s.r > 0.8) {
+      const glow = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, radius * 5);
+      glow.addColorStop(0, `rgba(220,230,255,${twinkle * 0.2})`);
+      glow.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, radius * 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
     ctx.beginPath();
-    ctx.arc(s.x, s.y, s.r * twinkle, 0, Math.PI * 2);
+    ctx.arc(s.x, s.y, radius, 0, Math.PI * 2);
     ctx.fillStyle = `rgba(220,230,255,${twinkle * 0.85})`;
     ctx.fill();
   });

@@ -7,6 +7,7 @@ import { initNight, drawNight } from "./scenes/NightScene";
 import { initStream, drawStream } from "./scenes/StreamScene";
 import { initWind, drawWind } from "./scenes/WindChimeScene";
 import { initThunder, drawThunder } from "./scenes/ThunderScene";
+import { applyFilmGrain, applyVignette } from "./scenes/postProcess";
 
 const SCENES = {
   rain:    { init: initRain,    draw: drawRain },
@@ -35,8 +36,13 @@ export default function AmbienceVisual({ sceneId, width = 400, height = 400, cla
     const h = canvas.height;
     stateRef.current = scene.init(w, h);
 
+    let frameCount = 0;
     const loop = () => {
       scene.draw(ctx, w, h, stateRef.current);
+      // Post-processing every frame: vignette always, grain every 2nd frame for perf
+      applyVignette(ctx, w, h, 0.52);
+      if (frameCount % 2 === 0) applyFilmGrain(ctx, w, h, 0.038);
+      frameCount++;
       rafRef.current = requestAnimationFrame(loop);
     };
     rafRef.current = requestAnimationFrame(loop);

@@ -116,7 +116,7 @@ export function drawStream(ctx, w, h, state) {
     ctx.strokeStyle = `rgba(200,240,245,${f.alpha})`; ctx.lineWidth = 0.8; ctx.stroke();
   });
 
-  // Mist spray
+  // Mist spray — bokeh softness
   state.spray.forEach((s) => {
     s.x += s.vx; s.y += s.vy; s.alpha -= 0.008;
     if (s.alpha <= 0) {
@@ -124,8 +124,11 @@ export function drawStream(ctx, w, h, state) {
       s.y = h * 0.48; s.vx = (Math.random() - 0.5) * 1.5;
       s.vy = -(0.5 + Math.random() * 1.5); s.alpha = 0.4 + Math.random() * 0.4;
     }
-    ctx.beginPath(); ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(200,230,240,${s.alpha})`; ctx.fill();
+    const bokeh = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, s.size * 3);
+    bokeh.addColorStop(0, `rgba(200,230,240,${s.alpha})`);
+    bokeh.addColorStop(1, "rgba(200,230,240,0)");
+    ctx.fillStyle = bokeh;
+    ctx.beginPath(); ctx.arc(s.x, s.y, s.size * 3, 0, Math.PI * 2); ctx.fill();
   });
 
   state.t += 0.016;

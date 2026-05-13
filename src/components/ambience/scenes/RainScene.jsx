@@ -47,14 +47,17 @@ export function drawRain(ctx, w, h, state) {
     ctx.fill();
   });
 
-  // Rain drops
+  // Rain drops — distant drops are blurred for depth
   ctx.save();
   state.drops.forEach((d) => {
-    ctx.strokeStyle = `rgba(160,200,240,${d.alpha})`;
-    ctx.lineWidth = d.width;
+    // Drops near top are "distant" — softer, thinner
+    const depthFactor = d.y / h; // 0 = far, 1 = near
+    ctx.strokeStyle = `rgba(160,200,240,${d.alpha * (0.4 + depthFactor * 0.6)})`;
+    ctx.lineWidth = d.width * (0.4 + depthFactor * 0.8);
+    ctx.filter = depthFactor < 0.3 ? "blur(0.6px)" : "none";
     ctx.beginPath();
     ctx.moveTo(d.x, d.y);
-    ctx.lineTo(d.x - 1.2, d.y + d.len);
+    ctx.lineTo(d.x - 1.2, d.y + d.len * (0.5 + depthFactor * 0.5));
     ctx.stroke();
     d.y += d.speed;
     d.x -= 0.8;
@@ -67,6 +70,7 @@ export function drawRain(ctx, w, h, state) {
       d.x = Math.random() * w;
     }
   });
+  ctx.filter = "none";
   ctx.restore();
 
   // Ripple rings
