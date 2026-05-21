@@ -10,7 +10,7 @@ export default function SandGarden() {
     lastPointerAngle: null,
     lastPointerTime: null,
     grooves: 18,
-    sandPiles: [], // { angle, size } accumulated sand at rim
+    sandPiles: [],
   });
   const [speed, setSpeed] = useState("slow");
   const [isAuto, setIsAuto] = useState(true);
