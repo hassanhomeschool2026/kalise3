@@ -9,12 +9,10 @@ export default function SandGarden() {
     isDragging: false,
     lastPointerAngle: null,
     lastPointerTime: null,
-    grooves: 18,
-    sandPiles: [],
+    isAuto: true,
   });
   const [speed, setSpeed] = useState("slow");
   const [isAuto, setIsAuto] = useState(true);
-
   const speeds = { slow: 0.003, medium: 0.007, fast: 0.014 };
 
   useEffect(() => {
@@ -32,13 +30,18 @@ export default function SandGarden() {
 
     const s = stateRef.current;
 
-    // Sand ridge along the blade: array of {t: 0..1, size} where t=0 is left tip, t=1 is right tip
-    // t=0.5 is center pivot. Piles live in blade-local coords, rendered rotated with the blade.
-    s.sandRidge = Array.from({ length: 32 }, (_, i) => ({
-      t: i / 31, // 0..1 along blade
-      size: 1 + Math.random() * 2.5,
-    }));
-    s.sandPiles = []; // unused now
+    // Sand is stored as a height map around the circle rim.
+    // NUM_SECTORS sectors, each holding a "height" 0..1
+    // The blade pushes sand up as it sweeps, sand slowly settles back to rest height.
+    const NUM_SECTORS = 360;
+    const REST_HEIGHT = 0.18;       // natural resting sand height
+    const MAX_HEIGHT = 1.0;         // max pile height
+    const SETTLE_RATE = 0.0004;     // how fast sand settles back to rest (per frame)
+    const PUSH_WIDTH = 18;          // how many sectors the blade pushes ahead (degrees)
+    const RAKE_WIDTH = 30;          // how wide the rake flattens behind it (degrees)
+
+    // Initialize sand at rest
+    const sandHeight = new Float32Array(NUM_SECTORS).fill(REST_HEIGHT);
 
     // --- Pointer helpers ---
     function getPointerAngle(e, cx, cy) {
@@ -59,9 +62,7 @@ export default function SandGarden() {
       const clientY = e.touches ? e.touches[0].clientY : e.clientY;
       const x = (clientX - rect.left) * (canvas.width / rect.width) - cx;
       const y = (clientY - rect.top) * (canvas.height / rect.height) - cy;
-      const dist = Math.sqrt(x * x + y * y);
-      if (dist > radius) return; // only inside circle
-
+      if (Math.sqrt(x * x + y * y) > radius) return;
       s.isDragging = true;
       s.manualVelocity = 0;
       s.lastPointerAngle = getPointerAngle(e, cx, cy);
@@ -76,19 +77,16 @@ export default function SandGarden() {
       const nowAngle = getPointerAngle(e, cx, cy);
       const now = performance.now();
       let delta = nowAngle - s.lastPointerAngle;
-      // Wrap delta to [-PI, PI]
       if (delta > Math.PI) delta -= Math.PI * 2;
       if (delta < -Math.PI) delta += Math.PI * 2;
       s.angle += delta;
       const dt = Math.max(now - s.lastPointerTime, 1);
-      s.manualVelocity = delta / dt * 16; // scale to per-frame
+      s.manualVelocity = delta / dt * 16;
       s.lastPointerAngle = nowAngle;
       s.lastPointerTime = now;
     }
 
-    function onPointerUp() {
-      s.isDragging = false;
-    }
+    function onPointerUp() { s.isDragging = false; }
 
     canvas.addEventListener("mousedown", onPointerDown);
     canvas.addEventListener("mousemove", onPointerMove);
@@ -98,33 +96,63 @@ export default function SandGarden() {
     canvas.addEventListener("touchmove", onPointerMove, { passive: false });
     canvas.addEventListener("touchend", onPointerUp);
 
-    // --- Sand ridge accumulation along the blade ---
-    let lastAngle = s.angle;
-    let frameCount = 0;
-
-    function updateSandRidge(currentAngle) {
-      frameCount++;
-      if (frameCount % 3 !== 0) return;
-      const swept = currentAngle - lastAngle;
-      lastAngle = currentAngle;
-      const speed = Math.abs(swept);
-      if (speed < 0.0005) return;
-
-      // The rake (0..PI half) pushes sand onto the blade line.
-      // Sand builds up more near the tips (t≈0 and t≈1) and the outer half of the blade.
-      s.sandRidge.forEach(p => {
-        const distFromTip = Math.min(p.t, 1 - p.t); // 0 at tips, 0.5 at center
-        const rimBias = 1 - distFromTip * 1.4; // more accumulation near rim tips
-        // Skip center zone (pivot knob area)
-        if (distFromTip < 0.08) return;
-        p.size = Math.min(p.size + speed * 18 * rimBias, 14);
-      });
-
-      // Smoother half slowly flattens the ridge back down
-      s.sandRidge.forEach(p => {
-        p.size = Math.max(p.size - speed * 3, 0.5);
-      });
+    // Convert angle (radians) to sector index
+    function angleToSector(a) {
+      const deg = ((a * 180 / Math.PI) % 360 + 360) % 360;
+      return Math.floor(deg) % NUM_SECTORS;
     }
+
+    let lastBladeAngle = s.angle;
+
+    function updateSand(bladeAngle) {
+      const swept = bladeAngle - lastBladeAngle;
+      lastBladeAngle = bladeAngle;
+      const speed = Math.abs(swept);
+
+      // Settle all sand slowly back toward rest height
+      for (let i = 0; i < NUM_SECTORS; i++) {
+        if (sandHeight[i] < REST_HEIGHT) {
+          sandHeight[i] = Math.min(sandHeight[i] + SETTLE_RATE, REST_HEIGHT);
+        } else if (sandHeight[i] > REST_HEIGHT) {
+          sandHeight[i] = Math.max(sandHeight[i] - SETTLE_RATE * 0.5, REST_HEIGHT);
+        }
+      }
+
+      if (speed < 0.0002) return;
+
+      // The blade divides space into two halves:
+      // "rake" half (0..PI from blade angle) creates grooves + pushes sand to blade
+      // The blade itself acts as a bulldozer — sand piles up just ahead of the leading edge
+
+      const bladeDir = swept > 0 ? 1 : -1; // rotation direction
+
+      // Leading edge of blade: the sector the blade is sweeping INTO
+      const leadingSector = angleToSector(bladeAngle + bladeDir * 0.01);
+
+      // Push sand ahead of blade — collect from just behind and pile just ahead
+      for (let i = 1; i <= PUSH_WIDTH; i++) {
+        const behind = (leadingSector - bladeDir * i + NUM_SECTORS * 2) % NUM_SECTORS;
+        const ahead = (leadingSector + bladeDir * i + NUM_SECTORS * 2) % NUM_SECTORS;
+
+        // Scoop from behind the leading edge
+        const scoop = sandHeight[behind] * speed * 3.5;
+        sandHeight[behind] = Math.max(sandHeight[behind] - scoop, 0);
+
+        // Pile ahead of leading edge, weighted toward just at the blade
+        const weight = 1 - (i - 1) / PUSH_WIDTH;
+        sandHeight[ahead] = Math.min(sandHeight[ahead] + scoop * weight, MAX_HEIGHT);
+      }
+
+      // Rake half: flatten sand in the swept zone (grooves smooth sand down)
+      const rakeStart = angleToSector(bladeAngle);
+      for (let i = 1; i <= RAKE_WIDTH; i++) {
+        const sector = (rakeStart - bladeDir * i + NUM_SECTORS * 2) % NUM_SECTORS;
+        // Rake gradually levels sand toward a low flat profile
+        sandHeight[sector] = sandHeight[sector] * (1 - speed * 2) + 0.04 * speed * 2;
+      }
+    }
+
+    const GROOVES = 18;
 
     function draw() {
       animId = requestAnimationFrame(draw);
@@ -137,17 +165,15 @@ export default function SandGarden() {
         if (s.isAuto) {
           s.angle += s.autoSpeed;
         } else {
-          // coast with friction
           s.angle += s.manualVelocity;
           s.manualVelocity *= 0.96;
         }
       }
 
-      updateSandRidge(s.angle);
+      updateSand(s.angle);
       const angle = s.angle;
-      const grooves = s.grooves;
 
-      // --- Background pebbles ---
+      // --- Background ---
       ctx.fillStyle = "#c8c4bc";
       ctx.fillRect(0, 0, w, h);
       for (let i = 0; i < 80; i++) {
@@ -189,44 +215,50 @@ export default function SandGarden() {
       ctx.fillStyle = sandGrad;
       ctx.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
 
-      // --- Sand ridge along the blade (rotates with the blade) ---
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.rotate(angle);
-      // blade goes from -radius to +radius along x-axis
-      s.sandRidge.forEach(p => {
-        const bx = -radius + p.t * radius * 2; // position along blade
-        const distFromTip = Math.min(p.t, 1 - p.t);
-        if (distFromTip < 0.08) return; // skip pivot area
-        const h = p.size;
-        // Draw a soft sand mound sitting on top of the blade line
-        // Mound sits above the blade (negative y = upward in rotated space)
-        const mg = ctx.createRadialGradient(bx, -h * 0.5, 0, bx, 0, h * 2);
-        mg.addColorStop(0, `rgba(225,215,190,0.85)`);
-        mg.addColorStop(0.5, `rgba(205,195,168,0.55)`);
-        mg.addColorStop(1, `rgba(190,180,155,0)`);
+      // --- Draw sand height map as rim piles ---
+      // Each sector renders a soft mound near the rim proportional to its height
+      for (let i = 0; i < NUM_SECTORS; i++) {
+        const h_val = sandHeight[i];
+        if (h_val < 0.05) continue;
+
+        const sectorAngle = (i / NUM_SECTORS) * Math.PI * 2;
+        const nextAngle = ((i + 1) / NUM_SECTORS) * Math.PI * 2;
+        const midAngle = (sectorAngle + nextAngle) / 2;
+
+        // Pile size scales with height
+        const pileH = h_val * 16; // max 16px height
+        const rimR = radius * 0.82 + pileH * 0.5;
+        const px = cx + Math.cos(midAngle) * rimR;
+        const py = cy + Math.sin(midAngle) * rimR;
+
+        const alpha = Math.min(h_val * 1.2, 0.92);
+        const spread = (radius * 0.022) + pileH * 0.4;
+
+        const mg = ctx.createRadialGradient(px, py, 0, px, py, spread * 2);
+        mg.addColorStop(0, `rgba(218,208,185,${alpha})`);
+        mg.addColorStop(0.4, `rgba(200,190,165,${alpha * 0.7})`);
+        mg.addColorStop(1, `rgba(185,175,150,0)`);
+
         ctx.beginPath();
-        ctx.ellipse(bx, 0, h * 1.8, h * 0.9, 0, 0, Math.PI * 2);
+        ctx.ellipse(px, py, spread * 2, spread, midAngle + Math.PI / 2, 0, Math.PI * 2);
         ctx.fillStyle = mg;
         ctx.fill();
-      });
-      ctx.restore();
+      }
 
       // --- Rotating blade ---
       ctx.save();
       ctx.translate(cx, cy);
       ctx.rotate(angle);
 
-      // Raked half
+      // Raked half (0 to PI)
       ctx.save();
       ctx.beginPath();
       ctx.moveTo(0, 0);
       ctx.arc(0, 0, radius, 0, Math.PI);
       ctx.closePath();
       ctx.clip();
-
-      for (let i = 1; i <= grooves; i++) {
-        const r = (i / grooves) * radius * 0.97;
+      for (let i = 1; i <= GROOVES; i++) {
+        const r = (i / GROOVES) * radius * 0.97;
         const depth = 0.5 + (i % 3) * 0.15;
         ctx.beginPath();
         ctx.arc(0, 0, r, 0, Math.PI);
@@ -246,15 +278,15 @@ export default function SandGarden() {
       }
       ctx.restore();
 
-      // Smooth half
+      // Smooth half (PI to 2PI)
       ctx.save();
       ctx.beginPath();
       ctx.moveTo(0, 0);
       ctx.arc(0, 0, radius, Math.PI, Math.PI * 2);
       ctx.closePath();
       ctx.clip();
-      for (let i = 1; i <= grooves; i++) {
-        const r = (i / grooves) * radius * 0.97;
+      for (let i = 1; i <= GROOVES; i++) {
+        const r = (i / GROOVES) * radius * 0.97;
         ctx.beginPath();
         ctx.arc(0, 0, r, Math.PI, Math.PI * 2);
         ctx.strokeStyle = `rgba(200,195,180,0.12)`;
@@ -263,7 +295,7 @@ export default function SandGarden() {
       }
       ctx.restore();
 
-      // Dividing blade
+      // Dividing blade line
       ctx.beginPath();
       ctx.moveTo(-radius, 0);
       ctx.lineTo(radius, 0);
@@ -324,7 +356,6 @@ export default function SandGarden() {
     };
   }, []);
 
-  // Sync speed + auto mode to ref
   useEffect(() => {
     stateRef.current.autoSpeed = speeds[speed];
     stateRef.current.isAuto = isAuto;
@@ -343,15 +374,15 @@ export default function SandGarden() {
           {isAuto ? "⟳ Auto" : "✋ Manual"}
         </button>
         <div className="w-px h-4 bg-white/20" />
-        {Object.keys(speeds).map(s => (
+        {Object.keys(speeds).map(k => (
           <button
-            key={s}
-            onClick={() => { setSpeed(s); setIsAuto(true); }}
+            key={k}
+            onClick={() => { setSpeed(k); setIsAuto(true); }}
             className={`px-3 py-1 rounded-full text-xs font-medium backdrop-blur-sm transition-all capitalize ${
-              speed === s && isAuto ? "bg-white/30 text-white" : "bg-black/20 text-white/50"
+              speed === k && isAuto ? "bg-white/30 text-white" : "bg-black/20 text-white/50"
             }`}
           >
-            {s}
+            {k}
           </button>
         ))}
       </div>
