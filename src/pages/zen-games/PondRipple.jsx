@@ -5,9 +5,16 @@ export default function PondRipple() {
   const mountRef = useRef(null);
 
   useEffect(() => {
+    let cleanup;
+    const timer = setTimeout(() => { cleanup = init(); }, 50);
+    return () => { clearTimeout(timer); cleanup && cleanup(); };
+  }, []);
+
+  function init() {
     const mount = mountRef.current;
-    const w = mount.clientWidth;
-    const h = mount.clientHeight;
+    if (!mount) return;
+    const w = mount.offsetWidth || 400;
+    const h = mount.offsetHeight || 500;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(w, h);
@@ -173,11 +180,11 @@ export default function PondRipple() {
       renderer.dispose();
       if (mount.contains(renderer.domElement)) mount.removeChild(renderer.domElement);
     };
-  }, []);
+  }
 
   return (
     <div className="relative w-full h-full rounded-2xl overflow-hidden">
-      <div ref={mountRef} className="w-full h-full cursor-pointer" />
+      <div ref={mountRef} className="w-full h-full cursor-pointer" style={{ minHeight: "100%" }} />
       <p className="absolute bottom-3 left-0 right-0 text-center text-xs text-white/40">Tap the water to create ripples</p>
     </div>
   );

@@ -22,7 +22,7 @@ export default function ZenGames() {
           <ArrowLeft className="w-4 h-4" /> Back
         </button>
         <h2 className="font-heading text-lg font-semibold mb-3">{activeGame.emoji} {activeGame.name}</h2>
-        <div className="w-full h-[60vh] rounded-2xl overflow-hidden">
+        <div className="w-full rounded-2xl overflow-hidden" style={{ height: "60vh" }}>
           <GameComponent />
         </div>
       </div>

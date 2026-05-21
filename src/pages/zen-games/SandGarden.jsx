@@ -7,9 +7,16 @@ export default function SandGarden() {
   const [tool, setTool] = useState("rake"); // rake | stone
 
   useEffect(() => {
+    let cleanup;
+    const timer = setTimeout(() => { cleanup = init(); }, 50);
+    return () => { clearTimeout(timer); cleanup && cleanup(); };
+  }, []);
+
+  function init() {
     const mount = mountRef.current;
-    const w = mount.clientWidth;
-    const h = mount.clientHeight;
+    if (!mount) return;
+    const w = mount.offsetWidth || 400;
+    const h = mount.offsetHeight || 500;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(w, h);
@@ -188,12 +195,18 @@ export default function SandGarden() {
 
     return () => {
       cancelAnimationFrame(animId);
-      ["mousedown","mousemove","mouseup","mouseleave"].forEach(ev => mount.removeEventListener(ev, ev === "mousedown" ? onDown : ev === "mousemove" ? onMove : onUp));
+      mount.removeEventListener("mousedown", onDown);
+      mount.removeEventListener("mousemove", onMove);
+      mount.removeEventListener("mouseup", onUp);
+      mount.removeEventListener("mouseleave", onUp);
+      mount.removeEventListener("touchstart", onDown);
+      mount.removeEventListener("touchmove", onMove);
+      mount.removeEventListener("touchend", onUp);
       window.removeEventListener("resize", handleResize);
       renderer.dispose();
       if (mount.contains(renderer.domElement)) mount.removeChild(renderer.domElement);
     };
-  }, []);
+  }
 
   // Sync tool to ref
   useEffect(() => {
@@ -202,7 +215,7 @@ export default function SandGarden() {
 
   return (
     <div className="relative w-full h-full rounded-2xl overflow-hidden">
-      <div ref={mountRef} className="w-full h-full" style={{ cursor: tool === "rake" ? "crosshair" : "cell" }} />
+      <div ref={mountRef} className="w-full h-full" style={{ minHeight: "100%", cursor: tool === "rake" ? "crosshair" : "cell" }} />
       <div className="absolute top-3 left-3 flex gap-2">
         {[{ id: "rake", label: "🪥 Rake" }, { id: "stone", label: "🪨 Stone" }].map(t => (
           <button

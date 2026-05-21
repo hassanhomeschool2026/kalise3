@@ -7,9 +7,18 @@ export default function BubblePop() {
   const [score, setScore] = useState(0);
 
   useEffect(() => {
+    let cleanup;
+    const timer = setTimeout(() => {
+      cleanup = init();
+    }, 50);
+    return () => { clearTimeout(timer); cleanup && cleanup(); };
+  }, []);
+
+  function init() {
     const mount = mountRef.current;
-    const w = mount.clientWidth;
-    const h = mount.clientHeight;
+    if (!mount) return;
+    const w = mount.offsetWidth || 400;
+    const h = mount.offsetHeight || 500;
 
     // Renderer
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -147,11 +156,11 @@ export default function BubblePop() {
       renderer.dispose();
       if (mount.contains(renderer.domElement)) mount.removeChild(renderer.domElement);
     };
-  }, []);
+  }
 
   return (
     <div className="relative w-full h-full rounded-2xl overflow-hidden">
-      <div ref={mountRef} className="w-full h-full" />
+      <div ref={mountRef} className="w-full h-full" style={{ minHeight: "100%" }} />
       <div className="absolute top-3 right-3 bg-white/10 backdrop-blur-sm rounded-full px-3 py-1 text-xs font-medium text-white/80">
         {score} popped
       </div>
