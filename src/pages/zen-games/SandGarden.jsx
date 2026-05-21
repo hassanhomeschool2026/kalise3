@@ -32,11 +32,13 @@ export default function SandGarden() {
 
     const s = stateRef.current;
 
-    // Seed a few initial sand piles at the rim
-    s.sandPiles = Array.from({ length: 12 }, (_, i) => ({
-      angle: (i / 12) * Math.PI * 2,
-      size: 2 + Math.random() * 5,
+    // Sand ridge along the blade: array of {t: 0..1, size} where t=0 is left tip, t=1 is right tip
+    // t=0.5 is center pivot. Piles live in blade-local coords, rendered rotated with the blade.
+    s.sandRidge = Array.from({ length: 32 }, (_, i) => ({
+      t: i / 31, // 0..1 along blade
+      size: 1 + Math.random() * 2.5,
     }));
+    s.sandPiles = []; // unused now
 
     // --- Pointer helpers ---
     function getPointerAngle(e, cx, cy) {
@@ -96,46 +98,32 @@ export default function SandGarden() {
     canvas.addEventListener("touchmove", onPointerMove, { passive: false });
     canvas.addEventListener("touchend", onPointerUp);
 
-    // --- Sand pile accumulation ---
-    // The rake half (angle to angle+PI) pushes sand toward the rim
-    // We track which rim sectors the rake blade sweeps and grow piles there
-    let lastRakeAngle = s.angle;
+    // --- Sand ridge accumulation along the blade ---
+    let lastAngle = s.angle;
     let frameCount = 0;
 
-    function updateSandPiles(currentAngle, radius) {
+    function updateSandRidge(currentAngle) {
       frameCount++;
-      if (frameCount % 4 !== 0) return; // only update every 4 frames
+      if (frameCount % 3 !== 0) return;
+      const swept = currentAngle - lastAngle;
+      lastAngle = currentAngle;
+      const speed = Math.abs(swept);
+      if (speed < 0.0005) return;
 
-      const swept = currentAngle - lastRakeAngle;
-      lastRakeAngle = currentAngle;
-      if (Math.abs(swept) < 0.001) return;
-
-      // The rake blade tip is at currentAngle on the positive side
-      // Add sand at the leading edge of the rake half (at angle + PI/2 region)
-      const rakeEdge = currentAngle + Math.PI * 0.5;
-
-      // Find closest existing pile or create new one
-      const pileRange = 0.3; // radians
-      let closest = null;
-      let minDist = pileRange;
-      s.sandPiles.forEach(p => {
-        let d = Math.abs(p.angle - rakeEdge);
-        if (d > Math.PI) d = Math.PI * 2 - d;
-        if (d < minDist) { minDist = d; closest = p; }
+      // The rake (0..PI half) pushes sand onto the blade line.
+      // Sand builds up more near the tips (t≈0 and t≈1) and the outer half of the blade.
+      s.sandRidge.forEach(p => {
+        const distFromTip = Math.min(p.t, 1 - p.t); // 0 at tips, 0.5 at center
+        const rimBias = 1 - distFromTip * 1.4; // more accumulation near rim tips
+        // Skip center zone (pivot knob area)
+        if (distFromTip < 0.08) return;
+        p.size = Math.min(p.size + speed * 18 * rimBias, 14);
       });
 
-      if (closest) {
-        closest.size = Math.min(closest.size + Math.abs(swept) * 8, 12);
-        // Smooth piles decay slightly when the smoother passes
-        const smootherEdge = currentAngle - Math.PI * 0.5;
-        s.sandPiles.forEach(p => {
-          let d = Math.abs(p.angle - smootherEdge);
-          if (d > Math.PI) d = Math.PI * 2 - d;
-          if (d < pileRange) p.size = Math.max(p.size - Math.abs(swept) * 5, 1);
-        });
-      } else if (s.sandPiles.length < 40) {
-        s.sandPiles.push({ angle: rakeEdge, size: 2 });
-      }
+      // Smoother half slowly flattens the ridge back down
+      s.sandRidge.forEach(p => {
+        p.size = Math.max(p.size - speed * 3, 0.5);
+      });
     }
 
     function draw() {
@@ -155,7 +143,7 @@ export default function SandGarden() {
         }
       }
 
-      updateSandPiles(s.angle, radius);
+      updateSandRidge(s.angle);
       const angle = s.angle;
       const grooves = s.grooves;
 
@@ -201,26 +189,28 @@ export default function SandGarden() {
       ctx.fillStyle = sandGrad;
       ctx.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
 
-      // --- Sand piles at rim ---
-      s.sandPiles.forEach(pile => {
-        const px = cx + Math.cos(pile.angle) * (radius * 0.88);
-        const py = cy + Math.sin(pile.angle) * (radius * 0.88);
-        const pr = pile.size;
-        // Pile body
-        const pg = ctx.createRadialGradient(px, py, 0, px, py, pr * 2.5);
-        pg.addColorStop(0, `rgba(210,200,178,0.9)`);
-        pg.addColorStop(0.5, `rgba(195,185,160,0.7)`);
-        pg.addColorStop(1, `rgba(180,170,148,0)`);
+      // --- Sand ridge along the blade (rotates with the blade) ---
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(angle);
+      // blade goes from -radius to +radius along x-axis
+      s.sandRidge.forEach(p => {
+        const bx = -radius + p.t * radius * 2; // position along blade
+        const distFromTip = Math.min(p.t, 1 - p.t);
+        if (distFromTip < 0.08) return; // skip pivot area
+        const h = p.size;
+        // Draw a soft sand mound sitting on top of the blade line
+        // Mound sits above the blade (negative y = upward in rotated space)
+        const mg = ctx.createRadialGradient(bx, -h * 0.5, 0, bx, 0, h * 2);
+        mg.addColorStop(0, `rgba(225,215,190,0.85)`);
+        mg.addColorStop(0.5, `rgba(205,195,168,0.55)`);
+        mg.addColorStop(1, `rgba(190,180,155,0)`);
         ctx.beginPath();
-        ctx.ellipse(px, py, pr * 2.5, pr * 1.2, pile.angle, 0, Math.PI * 2);
-        ctx.fillStyle = pg;
-        ctx.fill();
-        // Pile highlight
-        ctx.beginPath();
-        ctx.ellipse(px - pr * 0.3, py - pr * 0.3, pr * 0.8, pr * 0.4, pile.angle, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(240,235,220,${0.3 * (pile.size / 12)})`;
+        ctx.ellipse(bx, 0, h * 1.8, h * 0.9, 0, 0, Math.PI * 2);
+        ctx.fillStyle = mg;
         ctx.fill();
       });
+      ctx.restore();
 
       // --- Rotating blade ---
       ctx.save();
