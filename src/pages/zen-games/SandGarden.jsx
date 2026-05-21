@@ -1,237 +1,221 @@
 import { useEffect, useRef, useState } from "react";
-import * as THREE from "three";
 
 export default function SandGarden() {
-  const mountRef = useRef(null);
-  const stateRef = useRef({});
-  const [tool, setTool] = useState("rake"); // rake | stone
+  const canvasRef = useRef(null);
+  const stateRef = useRef({ angle: 0, speed: 0.003, grooves: 18 });
+  const [speed, setSpeed] = useState("slow");
+
+  const speeds = { slow: 0.003, medium: 0.007, fast: 0.014 };
 
   useEffect(() => {
-    let cleanup;
-    const timer = setTimeout(() => { cleanup = init(); }, 50);
-    return () => { clearTimeout(timer); cleanup && cleanup(); };
-  }, []);
-
-  function init() {
-    const mount = mountRef.current;
-    if (!mount) return;
-    const w = mount.offsetWidth || 400;
-    const h = mount.offsetHeight || 500;
-
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(w, h);
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.shadowMap.enabled = true;
-    mount.appendChild(renderer.domElement);
-
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x1a1008);
-    scene.fog = new THREE.Fog(0x1a1008, 18, 30);
-
-    const camera = new THREE.PerspectiveCamera(50, w / h, 0.1, 100);
-    camera.position.set(0, 10, 8);
-    camera.lookAt(0, 0, 0);
-
-    // Lighting
-    scene.add(new THREE.AmbientLight(0xffe8c0, 0.7));
-    const sun = new THREE.DirectionalLight(0xffd59a, 1.2);
-    sun.position.set(6, 12, 6);
-    sun.castShadow = true;
-    scene.add(sun);
-
-    // Sand ground — subdivided for displacement
-    const sandGeo = new THREE.PlaneGeometry(14, 14, 140, 140);
-    const sandMat = new THREE.MeshStandardMaterial({
-      color: 0xd4a96a,
-      roughness: 0.95,
-      metalness: 0.0,
-    });
-    const sand = new THREE.Mesh(sandGeo, sandMat);
-    sand.rotation.x = -Math.PI / 2;
-    sand.receiveShadow = true;
-    scene.add(sand);
-
-    // Sand edge border
-    const borderGeo = new THREE.BoxGeometry(15, 0.4, 0.3);
-    const borderMat = new THREE.MeshStandardMaterial({ color: 0x8b6840, roughness: 0.8 });
-    [[-7.15, 0, 0], [7.15, 0, 0]].forEach(([x, y, z]) => {
-      const b = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.4, 14.3), borderMat);
-      b.position.set(x, 0.1, z); scene.add(b);
-    });
-    [[-7.15, 0, 0], [7.15, 0, 0]].forEach(([x, y, z]) => {
-      const b = new THREE.Mesh(borderGeo, borderMat);
-      b.position.set(0, 0.1, x); scene.add(b);
-    });
-
-    // Displacement map for rake grooves
-    const grooveCanvas = document.createElement("canvas");
-    grooveCanvas.width = 512; grooveCanvas.height = 512;
-    const grooveCtx = grooveCanvas.getContext("2d");
-    grooveCtx.fillStyle = "#808080"; // neutral displacement
-    grooveCtx.fillRect(0, 0, 512, 512);
-    const dispTexture = new THREE.CanvasTexture(grooveCanvas);
-    sandMat.displacementMap = dispTexture;
-    sandMat.displacementScale = 0.25;
-
-    stateRef.current.grooveCtx = grooveCtx;
-    stateRef.current.dispTexture = dispTexture;
-    stateRef.current.grooveCanvas = grooveCanvas;
-
-    // Stones
-    const stones = [];
-    function addStone(x, z) {
-      const r = 0.25 + Math.random() * 0.3;
-      const geo = new THREE.SphereGeometry(r, 16, 12);
-      geo.scale(1, 0.65, 1);
-      const mat = new THREE.MeshStandardMaterial({
-        color: new THREE.Color().setHSL(0, 0, 0.3 + Math.random() * 0.25),
-        roughness: 0.7,
-      });
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.position.set(x, r * 0.4, z);
-      mesh.castShadow = true;
-      mesh.rotation.y = Math.random() * Math.PI;
-      scene.add(mesh);
-      stones.push(mesh);
-    }
-    // Initial stones
-    [[2, 1.5], [-2.5, -1], [1.5, -2.5]].forEach(([x, z]) => addStone(x, z));
-
-    stateRef.current.addStone = addStone;
-    stateRef.current.tool = "rake";
-    stateRef.current.sand = sand;
-
-    // Pointer state
-    let isDrawing = false;
-    let lastWorld = null;
-
-    const raycaster = new THREE.Raycaster();
-    function getWorldPos(e) {
-      const rect = mount.getBoundingClientRect();
-      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-      const nx = ((clientX - rect.left) / w) * 2 - 1;
-      const ny = -((clientY - rect.top) / h) * 2 + 1;
-      raycaster.setFromCamera(new THREE.Vector2(nx, ny), camera);
-      const hits = raycaster.intersectObject(sand);
-      return hits.length > 0 ? hits[0].point : null;
-    }
-
-    function drawGroove(from, to) {
-      const gCtx = stateRef.current.grooveCtx;
-      const toUV = (v) => ({
-        u: ((v.x + 7) / 14) * 512,
-        v: ((v.z + 7) / 14) * 512,
-      });
-      const a = toUV(from), b = toUV(to);
-      // Main rake line (dark = depression)
-      gCtx.strokeStyle = "rgba(40,40,40,0.55)";
-      gCtx.lineWidth = 5;
-      gCtx.lineCap = "round";
-      gCtx.beginPath();
-      gCtx.moveTo(a.u, a.v);
-      gCtx.lineTo(b.u, b.v);
-      gCtx.stroke();
-      // Side tines
-      for (let t = -2; t <= 2; t += 2) {
-        const angle = Math.atan2(b.v - a.v, b.u - a.u) + Math.PI / 2;
-        const dx = Math.cos(angle) * t * 4;
-        const dy = Math.sin(angle) * t * 4;
-        gCtx.strokeStyle = "rgba(50,50,50,0.3)";
-        gCtx.lineWidth = 2;
-        gCtx.beginPath();
-        gCtx.moveTo(a.u + dx, a.v + dy);
-        gCtx.lineTo(b.u + dx, b.v + dy);
-        gCtx.stroke();
-      }
-      stateRef.current.dispTexture.needsUpdate = true;
-    }
-
-    function onDown(e) {
-      e.preventDefault();
-      isDrawing = true;
-      const pos = getWorldPos(e);
-      if (!pos) return;
-      if (stateRef.current.tool === "stone") {
-        stateRef.current.addStone(pos.x, pos.z);
-      }
-      lastWorld = pos;
-    }
-    function onMove(e) {
-      e.preventDefault();
-      if (!isDrawing || stateRef.current.tool !== "rake") return;
-      const pos = getWorldPos(e);
-      if (!pos || !lastWorld) return;
-      drawGroove(lastWorld, pos);
-      lastWorld = pos;
-    }
-    function onUp() { isDrawing = false; lastWorld = null; }
-
-    mount.addEventListener("mousedown", onDown);
-    mount.addEventListener("mousemove", onMove);
-    mount.addEventListener("mouseup", onUp);
-    mount.addEventListener("mouseleave", onUp);
-    mount.addEventListener("touchstart", onDown, { passive: false });
-    mount.addEventListener("touchmove", onMove, { passive: false });
-    mount.addEventListener("touchend", onUp);
-
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
     let animId;
-    const clock = new THREE.Clock();
-    function animate() {
-      animId = requestAnimationFrame(animate);
-      const t = clock.getElapsedTime();
-      sun.position.x = Math.sin(t * 0.05) * 8;
-      renderer.render(scene, camera);
-    }
-    animate();
 
-    const handleResize = () => {
-      const nw = mount.clientWidth, nh = mount.clientHeight;
-      camera.aspect = nw / nh;
-      camera.updateProjectionMatrix();
-      renderer.setSize(nw, nh);
-    };
-    window.addEventListener("resize", handleResize);
+    function resize() {
+      canvas.width = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+    }
+    resize();
+    window.addEventListener("resize", resize);
+
+    function draw() {
+      animId = requestAnimationFrame(draw);
+      const w = canvas.width, h = canvas.height;
+      const cx = w / 2, cy = h / 2;
+      const radius = Math.min(w, h) * 0.44;
+
+      // Advance rotation
+      stateRef.current.angle += stateRef.current.speed;
+      const angle = stateRef.current.angle;
+      const grooves = stateRef.current.grooves;
+
+      // --- Background: white pebble/stone surround ---
+      ctx.fillStyle = "#c8c4bc";
+      ctx.fillRect(0, 0, w, h);
+
+      // Pebble texture dots
+      for (let i = 0; i < 80; i++) {
+        const px = ((i * 137.5) % 1) * w;
+        const py = ((i * 97.3) % 1) * h;
+        // Skip if inside sand circle
+        const dx = px - cx, dy = py - cy;
+        if (dx * dx + dy * dy < (radius + 28) * (radius + 28)) continue;
+        const pr = 6 + (i % 4) * 4;
+        const g = ctx.createRadialGradient(px - pr * 0.2, py - pr * 0.2, 1, px, py, pr);
+        g.addColorStop(0, "#dedad4");
+        g.addColorStop(0.6, "#b8b4ac");
+        g.addColorStop(1, "#8a877f");
+        ctx.beginPath();
+        ctx.ellipse(px, py, pr, pr * 0.8, i * 0.4, 0, Math.PI * 2);
+        ctx.fillStyle = g;
+        ctx.fill();
+      }
+
+      // --- Outer ring (dark border) ---
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius + 18, 0, Math.PI * 2);
+      const ringGrad = ctx.createRadialGradient(cx, cy, radius + 10, cx, cy, radius + 20);
+      ringGrad.addColorStop(0, "#2a2620");
+      ringGrad.addColorStop(1, "#1a1510");
+      ctx.fillStyle = ringGrad;
+      ctx.fill();
+
+      // Clip everything inside the sand circle
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.clip();
+
+      // --- Sand base: smooth half (0 to PI, the "smooth" side based on rotation) ---
+      // Full sand fill
+      const sandGrad = ctx.createRadialGradient(cx - radius * 0.1, cy - radius * 0.1, 0, cx, cy, radius);
+      sandGrad.addColorStop(0, "#f0ebe0");
+      sandGrad.addColorStop(0.6, "#e8e2d4");
+      sandGrad.addColorStop(1, "#d8d2c4");
+      ctx.fillStyle = sandGrad;
+      ctx.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
+
+      // --- Raked half: concentric arcs on one half ---
+      // The dividing line is at `angle`. Raked side = angle to angle+PI
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(angle);
+
+      // Clip to the raked semicircle
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.arc(0, 0, radius, 0, Math.PI);
+      ctx.closePath();
+      ctx.clip();
+
+      // Draw concentric groove arcs
+      for (let i = 1; i <= grooves; i++) {
+        const r = (i / grooves) * radius * 0.97;
+        const depth = 0.5 + (i % 3) * 0.15; // subtle variation in groove depth
+
+        // Shadow (groove trough)
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, Math.PI);
+        ctx.strokeStyle = `rgba(140,130,110,${0.35 * depth})`;
+        ctx.lineWidth = 2.2;
+        ctx.stroke();
+
+        // Highlight (groove crest)
+        ctx.beginPath();
+        ctx.arc(0, 0, r - 1.5, 0, Math.PI);
+        ctx.strokeStyle = `rgba(255,252,242,${0.55 * depth})`;
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+
+        // Fine shadow line inside
+        ctx.beginPath();
+        ctx.arc(0, 0, r + 1.2, 0, Math.PI);
+        ctx.strokeStyle = `rgba(100,90,70,${0.18 * depth})`;
+        ctx.lineWidth = 0.8;
+        ctx.stroke();
+      }
+
+      ctx.restore(); // raked clip
+
+      // --- Smooth half: subtle flat sand texture ---
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.arc(0, 0, radius, Math.PI, Math.PI * 2);
+      ctx.closePath();
+      ctx.clip();
+
+      // Very faint smooth grain lines
+      for (let i = 1; i <= grooves; i++) {
+        const r = (i / grooves) * radius * 0.97;
+        ctx.beginPath();
+        ctx.arc(0, 0, r, Math.PI, Math.PI * 2);
+        ctx.strokeStyle = `rgba(200,195,180,0.12)`;
+        ctx.lineWidth = 0.6;
+        ctx.stroke();
+      }
+
+      ctx.restore(); // smooth clip
+
+      // Dividing blade line
+      ctx.beginPath();
+      ctx.moveTo(-radius, 0);
+      ctx.lineTo(radius, 0);
+      const bladeGrad = ctx.createLinearGradient(-radius, 0, radius, 0);
+      bladeGrad.addColorStop(0, "rgba(180,170,150,0)");
+      bladeGrad.addColorStop(0.1, "rgba(200,190,170,0.7)");
+      bladeGrad.addColorStop(0.5, "rgba(220,215,200,0.9)");
+      bladeGrad.addColorStop(0.9, "rgba(200,190,170,0.7)");
+      bladeGrad.addColorStop(1, "rgba(180,170,150,0)");
+      ctx.strokeStyle = bladeGrad;
+      ctx.lineWidth = 3.5;
+      ctx.stroke();
+      // Blade edge highlight
+      ctx.beginPath();
+      ctx.moveTo(-radius, -1);
+      ctx.lineTo(radius, -1);
+      ctx.strokeStyle = "rgba(255,252,240,0.4)";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      ctx.restore(); // rotation
+
+      // --- Center pivot knob ---
+      const pivotGrad = ctx.createRadialGradient(cx - 3, cy - 3, 1, cx, cy, 12);
+      pivotGrad.addColorStop(0, "#555045");
+      pivotGrad.addColorStop(0.5, "#2a2520");
+      pivotGrad.addColorStop(1, "#1a1510");
+      ctx.beginPath();
+      ctx.arc(cx, cy, 12, 0, Math.PI * 2);
+      ctx.fillStyle = pivotGrad;
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(cx - 3, cy - 3, 4, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(100,95,85,0.5)";
+      ctx.fill();
+
+      // --- Sand rim shadow inside circle ---
+      const rimGrad = ctx.createRadialGradient(cx, cy, radius * 0.82, cx, cy, radius);
+      rimGrad.addColorStop(0, "rgba(0,0,0,0)");
+      rimGrad.addColorStop(1, "rgba(0,0,0,0.18)");
+      ctx.fillStyle = rimGrad;
+      ctx.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
+
+      ctx.restore(); // clip
+    }
+
+    draw();
 
     return () => {
       cancelAnimationFrame(animId);
-      mount.removeEventListener("mousedown", onDown);
-      mount.removeEventListener("mousemove", onMove);
-      mount.removeEventListener("mouseup", onUp);
-      mount.removeEventListener("mouseleave", onUp);
-      mount.removeEventListener("touchstart", onDown);
-      mount.removeEventListener("touchmove", onMove);
-      mount.removeEventListener("touchend", onUp);
-      window.removeEventListener("resize", handleResize);
-      renderer.dispose();
-      if (mount.contains(renderer.domElement)) mount.removeChild(renderer.domElement);
+      window.removeEventListener("resize", resize);
     };
-  }
+  }, []);
 
-  // Sync tool to ref
+  // Sync speed to ref
   useEffect(() => {
-    stateRef.current.tool = tool;
-  }, [tool]);
+    stateRef.current.speed = speeds[speed];
+  }, [speed]);
 
   return (
-    <div className="relative w-full h-full rounded-2xl overflow-hidden">
-      <div ref={mountRef} className="w-full h-full" style={{ minHeight: "100%", cursor: tool === "rake" ? "crosshair" : "cell" }} />
-      <div className="absolute top-3 left-3 flex gap-2">
-        {[{ id: "rake", label: "🪥 Rake" }, { id: "stone", label: "🪨 Stone" }].map(t => (
+    <div className="relative w-full h-full flex flex-col items-center justify-center bg-[#c8c4bc]">
+      <canvas ref={canvasRef} className="w-full h-full" />
+      <div className="absolute bottom-4 flex gap-2">
+        {Object.keys(speeds).map(s => (
           <button
-            key={t.id}
-            onClick={() => setTool(t.id)}
-            className={`px-3 py-1 rounded-full text-xs font-medium backdrop-blur-sm transition-all ${
-              tool === t.id ? "bg-white/25 text-white" : "bg-black/25 text-white/50"
+            key={s}
+            onClick={() => setSpeed(s)}
+            className={`px-3 py-1 rounded-full text-xs font-medium backdrop-blur-sm transition-all capitalize ${
+              speed === s ? "bg-white/30 text-white" : "bg-black/20 text-white/50"
             }`}
           >
-            {t.label}
+            {s}
           </button>
         ))}
       </div>
-      <p className="absolute bottom-3 left-0 right-0 text-center text-xs text-white/30">
-        {tool === "rake" ? "Draw rake patterns in the sand" : "Tap to place stones"}
-      </p>
     </div>
   );
 }
